@@ -6,7 +6,7 @@ short* allokujTablice(short rozmiar)
 {
 	short* tab = new short [rozmiar + 1];
 	if (tab == nullptr) {
-		throw invalid_argument("B��d alokacji pami�ci");
+		throw invalid_argument("B��d alokacji pami�ci");
 	}
 	tab[0] = (static_cast<short>(rozmiar) << 8) | (licznikTablic & 0xFFFF);
 
@@ -28,54 +28,45 @@ void zwolnijPamiec(short* tab)
 }
 
 
-bool zapiszDoPliku(const char* nazwaPliku, short* tab, int rozmiar)
-{
-	FILE* file = fopen(nazwaPliku, "w+b");
-	if (file == nullptr) 
-	{
-		return false;
-	}
+void zapiszTabliceDoPliku(const char* nazwaPliku, short* tablica) {
+    // Przesuwamy wskaźnik na początek tablicy (żeby mieć dostęp do rozmiaru i numeru)
+    short* tablicaDoZapisu = tablica - 1;
 
-	if (fwrite(&rozmiar, sizeof(rozmiar), 1, file) != 1) 
-	{
-		fclose(file);
-		return false; 
-	}
-
-	if (fwrite(tab - 1, sizeof(short), rozmiar + 1, file) != rozmiar + 1) {
-		fclose(file);
-		return false; 
-	}
-
-	fclose(file);
-	return true;
+    // Otwieramy plik w trybie binarnym do zapisu
+    FILE* plik = fopen(nazwaPliku, "wb");
+    if (plik) {
+        // Zapisujemy całą tablicę do pliku
+        size_t rozmiar = (tablicaDoZapisu[0] >> 8) & 0xFF;
+        fwrite(tablicaDoZapisu, sizeof(short), rozmiar + 1, plik);
+        fclose(plik);
+    } else {
+        cerr << "Nie można otworzyć pliku do zapisu.\n";
+    }
 }
 
 short* odczytTablicy(const char* nazwaPliku, int rozmiar)
 {
-	FILE* file = fopen(nazwaPliku, "rb");
-	if (file == nullptr) {
-		return nullptr;
-	}
+	FILE* plik = fopen(nazwaPliku, "rb");
+    if (plik) {
+        // Odczytujemy najpierw pierwszy element, aby poznać rozmiar tablicy
+        short pierwszyElement;
+        fread(&pierwszyElement, sizeof(short), 1, plik);
 
-	if (fread(&rozmiar, sizeof(rozmiar), 1, file) != 1) {
-		fclose(file);
-		return nullptr; 
-	}
-	short* tab = new short[rozmiar + 1];
-	if (tab == nullptr) {
-		fclose(file);
-		return nullptr; 
-	}
+        // Wyciągamy rozmiar tablicy z pierwszego elementu
+        size_t rozmiar = (pierwszyElement >> 8) & 0xFF;
 
+        // Alokujemy pamięć na całą tablicę (łącznie z elementem 0)
+        short* tablica = new short[rozmiar + 1];
+        tablica[0] = pierwszyElement;
 
-	if (fread(tab, sizeof(short), rozmiar + 1, file) != rozmiar + 1) {
-		delete[] tab;
-		fclose(file);
-		return nullptr; 
-	}
+        // Odczytujemy pozostałą część tablicy
+        fread(tablica + 1, sizeof(short), rozmiar, plik);
+        fclose(plik);
 
-	fclose(file);
-
-	return tab + 1;
+        // Zwracamy wskaźnik do początku właściwej tablicy
+        return tablica + 1;
+    } else {
+        cerr << "Nie można otworzyć pliku do odczytu.\n";
+        return nullptr;
+    }
 }
